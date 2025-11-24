@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+"""
+Basic Calorie Tracker CLI
+A simple command-line application to log meals and track calorie/gram intake.
+"""
+
+import json
+import os
+
+# Constants
+DATA_FILE = "food_log.json"
+
+
+def load_data():
+    """
+    Load meal entries from the JSON file.
+
+    Returns:
+        list: A list of dictionaries containing meal entries.
+              Returns an empty list if file doesn't exist or is invalid.
+    """
+    if not os.path.exists(DATA_FILE):
+        return []
+
+    try:
+        with open(DATA_FILE, 'r') as f:
+            data = json.load(f)
+            # Validate that data is a list
+            if isinstance(data, list):
+                return data
+            else:
+                print(f"Warning: {DATA_FILE} contains invalid data. Starting fresh.")
+                return []
+    except json.JSONDecodeError:
+        print(f"Warning: {DATA_FILE} is corrupted. Starting fresh.")
+        return []
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return []
+
+
+def save_data(entries):
+    """
+    Save meal entries to the JSON file.
+
+    Args:
+        entries (list): List of meal entry dictionaries to save.
+
+    Returns:
+        bool: True if save was successful, False otherwise.
+    """
+    try:
+        with open(DATA_FILE, 'w') as f:
+            json.dump(entries, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving data: {e}")
+        return False
+
+
+def print_summary(entries):
+    """
+    Print a summary of total calories and grams consumed.
+
+    Args:
+        entries (list): List of meal entry dictionaries.
+    """
+    if not entries:
+        print("\n" + "=" * 50)
+        print("CURRENT SESSION SUMMARY")
+        print("=" * 50)
+        print("No entries logged yet.")
+        print("=" * 50 + "\n")
+        return
+
+    total_calories = sum(entry['calories'] for entry in entries)
+    total_grams = sum(entry['grams'] for entry in entries)
+
+    print("\n" + "=" * 50)
+    print("CURRENT SESSION SUMMARY")
+    print("=" * 50)
+    print(f"Total Entries:  {len(entries)}")
+    print(f"Total Calories: {total_calories:.1f} kcal")
+    print(f"Total Grams:    {total_grams:.1f} g")
+    print("=" * 50 + "\n")
+
+
+def get_numeric_input(prompt, input_type=float):
+    """
+    Get and validate numeric input from the user.
+
+    Args:
+        prompt (str): The prompt to display to the user.
+        input_type (type): The type to convert to (float or int).
+
+    Returns:
+        float/int/None: The validated numeric value, or None if user wants to cancel.
+    """
+    while True:
+        user_input = input(prompt).strip()
+
+        # Allow user to cancel
+        if user_input.lower() == 'cancel':
+            return None
+
+        try:
+            value = input_type(user_input)
+            if value < 0:
+                print("Error: Please enter a positive number.")
+                continue
+            return value
+        except ValueError:
+            print(f"Error: Please enter a valid number (or type 'cancel' to go back).")
+
+
+def add_entry(entries):
+    """
+    Prompt user for meal information and add it to the entries list.
+
+    Args:
+        entries (list): The current list of meal entries.
+
+    Returns:
+        bool: True if entry was added successfully, False if cancelled.
+    """
+    print("\n--- Add New Meal Entry ---")
+    print("(Type 'cancel' at any prompt to go back to menu)\n")
+
+    # Get food name
+    food_name = input("Food name: ").strip()
+    if food_name.lower() == 'cancel' or not food_name:
+        print("Entry cancelled.\n")
+        return False
+
+    # Get calories
+    calories = get_numeric_input("Calories (kcal): ", float)
+    if calories is None:
+        print("Entry cancelled.\n")
+        return False
+
+    # Get grams
+    grams = get_numeric_input("Grams eaten (g): ", float)
+    if grams is None:
+        print("Entry cancelled.\n")
+        return False
+
+    # Create entry dictionary
+    entry = {
+        'name': food_name,
+        'calories': calories,
+        'grams': grams
+    }
+
+    # Add to list
+    entries.append(entry)
+
+    # Save to file
+    if save_data(entries):
+        print(f"\n✓ Successfully logged: {food_name} ({calories} kcal, {grams} g)\n")
+        return True
+    else:
+        # If save failed, remove the entry
+        entries.pop()
+        print("Failed to save entry. Please try again.\n")
+        return False
+
+
+def main():
+    """
+    Main program loop.
+    """
+    print("\n" + "=" * 50)
+    print("BASIC CALORIE TRACKER CLI")
+    print("=" * 50)
+
+    # Load existing data
+    entries = load_data()
+
+    # Print initial summary
+    print_summary(entries)
+
+    # Main menu loop
+    while True:
+        print("Options:")
+        print("  1. Log a meal")
+        print("  2. View summary")
+        print("  Type 'exit' to quit")
+
+        choice = input("\nWhat would you like to do? ").strip().lower()
+
+        if choice == 'exit':
+            print("\nThank you for using Calorie Tracker. Goodbye!\n")
+            break
+        elif choice == '1':
+            add_entry(entries)
+        elif choice == '2':
+            print_summary(entries)
+        else:
+            print("\nInvalid option. Please choose 1, 2, or type 'exit'.\n")
+
+
+if __name__ == "__main__":
+    main()
